@@ -8,7 +8,7 @@
 | Duration       | (14-may-2026 – 20-may-2026) (5WD)      |
 | Owner          | Developer A                            |
 | Reviewer       | MOHAMED SHAFEEQ                        |
-| Status         | Ready for development                  ||
+| Status         | Ready for development                  |
 
 ---
 

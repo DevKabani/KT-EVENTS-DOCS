@@ -4,7 +4,7 @@
 |---|---|
 | Sprint | 1 of N |
 | Duration | (14-may-2026 – 20-may-2026) (5WD) |
-| Owner | Developer B |
+| Owner | Developer B  |
 | Reviewer | MOHAMED SHAFEEQ |
 | Status | Ready for development |
 
