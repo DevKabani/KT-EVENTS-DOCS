@@ -1,3 +1,5 @@
+
+
 # Sprint 1 — Authentication & Authorization
 
 | Field          | Value                                  |
@@ -163,3 +165,6 @@ How the senior will verify the sprint is done.
 - [ ] Code merged to `develop` behind a feature flag if needed.
 - [ ] PR reviewed and approved by senior.
 - [ ] Short demo recorded or shown in sprint review.
+
+
+
