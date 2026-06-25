@@ -8,7 +8,7 @@ This document outlines the high-level architecture and folder structure for the 
 
 ```text
 kt-events/
-├── apps/                   # Individual applications (Next.js, NestJS)
+├── apps/                   # Individual applications (Next.js, Express)
 ├── packages/               # Shared libraries and configurations
 ├── docs/                   # Documentation and ADRs
 ├── openapi/                # API Specifications
@@ -25,7 +25,7 @@ kt-events/
 | `web-host` | Next.js | `app.yourdomain.com` | Dashboard for event organizers (hosts) to manage events. |
 | `web-admin` | Next.js | `admin.yourdomain.com` | Internal platform management and moderation. |
 | `api` | Express | `api.yourdomain.com` | Core backend services and business logic. |
-| `worker` | BullMQ | Background | Asynchronous job processing (emails, PDFs, etc). |
+| `worker` | Express · BullMQ · Redis | Background | Asynchronous job processing (emails, PDFs, etc). |
 
 ### Detailed App Breakdowns
 
@@ -68,6 +68,7 @@ kt-events/
   - `admin`, `platform-settings`, `webhooks`
 - `providers/`: Abstractions for external services (Payments, SMS, Email, Storage).
 - `common/`: Shared middlewares, validations, and error handlers.
+- `database/`: MongoDB connection and lifecycle setup.
 </details>
 
 <details>
@@ -75,8 +76,12 @@ kt-events/
 
 - `modules/`: Domain-based queues, workers, and processors:
   - `email/`, `notifications/`, `payments/`, `reports/`, `webhooks/`
-- `providers/`: 3rd-party SDK wrappers.
-- `cron/`: Scheduled job enqueuers.
+- `providers/`: 3rd-party SDK wrappers (the only place an SDK is imported).
+- `config/`: Redis, BullMQ defaults, and environment setup.
+- `cron/`: Scheduled job enqueuers (enqueue only, no inline logic).
+- `common/`: Shared constants, types, and logger.
+- `utils/`: Pure helper functions (no I/O, no side effects).
+- `dev-docs/`: Per-module documentation (required before merge).
 </details>
 
 ---

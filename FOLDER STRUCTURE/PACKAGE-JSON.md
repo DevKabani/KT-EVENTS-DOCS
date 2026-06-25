@@ -18,7 +18,7 @@ pnpm-workspace.yaml    → workspace membership
 ```json
 {
   "private": true,
-  "packageManager": "pnpm@latest",
+  "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
