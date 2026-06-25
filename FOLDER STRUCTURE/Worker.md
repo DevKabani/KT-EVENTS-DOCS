@@ -1,8 +1,6 @@
-
-
 # Worker — Folder Structure Standard
 
-**Stack:** Express *(health + Bull Board only)* · TypeScript · BullMQ · Redis · Prisma/PostgreSQL
+**Stack:** Express _(health + Bull Board only)_ · TypeScript · BullMQ · Redis · Prisma/PostgreSQL
 
 ## TL;DR
 
@@ -18,7 +16,19 @@ utils/         → pure functions
 dev-docs/      → per-module docs
 ```
 
-## Folder structure
+## Folder responsibilities
+
+| Folder       | Responsibility                                                           |
+| ------------ | ------------------------------------------------------------------------ |
+| `modules/`   | Domain queues, workers, logic (no cross-module imports except via queue) |
+| `providers/` | 3rd-party SDK wrappers (the _only_ place an SDK is imported)             |
+| `config/`    | Redis, bullmq defaults, env (one shared Redis connection)                |
+| `cron/`      | Scheduled job enqueuers (enqueue only, never run logic inline)           |
+| `common/`    | Shared constants/types/logger (no business logic)                        |
+| `utils/`     | Pure functions (no I/O, no side effects)                                 |
+| `dev-docs/`  | Per-module docs (required before merge)                                  |
+
+## Reference Layout
 
 ```text
 apps/worker/
@@ -48,30 +58,16 @@ apps/worker/
 ├── package.json · tsconfig.json · Dockerfile
 ```
 
-## Folder responsibilities
-
-| Folder         | Responsibility                                                                 |
-| -------------- | ------------------------------------------------------------------------------ |
-| `modules/`     | Domain queues, workers, logic (no cross-module imports except via queue)       |
-| `providers/`   | 3rd-party SDK wrappers (the *only* place an SDK is imported)                   |
-| `config/`      | Redis, bullmq defaults, env (one shared Redis connection)                      |
-| `cron/`        | Scheduled job enqueuers (enqueue only, never run logic inline)                 |
-| `common/`      | Shared constants/types/logger (no business logic)                              |
-| `utils/`       | Pure functions (no I/O, no side effects)                                       |
-| `dev-docs/`    | Per-module docs (required before merge)                                        |
-
 ## Module anatomy (every domain is identical)
 
-| File | Role | Imports |
-|---|---|---|
-| `*.queue.ts` | creates `Queue`, exposes typed `addX()` | config, types |
-| `*.worker.ts` | creates `Worker`, sets concurrency/events | processor, config |
-| `*.processor.ts` | the actual work | providers, prisma, types |
-| `*.types.ts` | job-name enum + payload interfaces | — |
+| File             | Role                                      | Imports                  |
+| ---------------- | ----------------------------------------- | ------------------------ |
+| `*.queue.ts`     | creates `Queue`, exposes typed `addX()`   | config, types            |
+| `*.worker.ts`    | creates `Worker`, sets concurrency/events | processor, config        |
+| `*.processor.ts` | the actual work                           | providers, prisma, types |
+| `*.types.ts`     | job-name enum + payload interfaces        | —                        |
 
 **Flow:** `API → queue.add() → Redis → Worker → Processor → Provider → External`
-
-
 
 Swap a provider = one file change, processors untouched.
 
@@ -80,29 +76,26 @@ Swap a provider = one file change, processors untouched.
 ```ts
 // common/constants/queues.ts
 export enum QueueName {
-  Email        = 'email',
-  Notification = 'notification',
-  Payment      = 'payment',
-  Report       = 'report',
-  Webhook      = 'webhook',
+  Email = "email",
+  Notification = "notification",
+  Payment = "payment",
+  Report = "report",
+  Webhook = "webhook",
 }
 ```
 
 Never type a queue name as a string literal anywhere else.
 
-
 ## Reliability defaults (set in `config/bullmq.ts`)
 
-| Concern | Standard |
-|---|---|
-| Retries | `attempts: 3`, `backoff: { type: 'exponential', delay: 5000 }` |
+| Concern     | Standard                                                               |
+| ----------- | ---------------------------------------------------------------------- |
+| Retries     | `attempts: 3`, `backoff: { type: 'exponential', delay: 5000 }`         |
 | Idempotency | pass `jobId` to dedupe; payment/webhook processors must be re-run-safe |
-| Retention | `removeOnComplete: 1000`, `removeOnFail: 5000` |
-| Failures | log + emit on `failed`; exhausted → dead-letter queue |
-| Shutdown | SIGTERM → `await worker.close()` + `queue.close()` (no half-done jobs) |
-| Concurrency | per-worker, tuned per domain (email high, payment low) |
-
-
+| Retention   | `removeOnComplete: 1000`, `removeOnFail: 5000`                         |
+| Failures    | log + emit on `failed`; exhausted → dead-letter queue                  |
+| Shutdown    | SIGTERM → `await worker.close()` + `queue.close()` (no half-done jobs) |
+| Concurrency | per-worker, tuned per domain (email high, payment low)                 |
 
 ## Rules
 
