@@ -1,19 +1,12 @@
-Quick correction before the rewrite: your stack is **NestJS** (backend) and **BullMQ** (worker), not Express — I've fixed both headings. Also normalized `notification.md` → `notifications.md` to match the tree. Here's the tightened standard inline for review:
 
----
 
-# Documentation Standard — KT Events
+# Developer Handover Document - KT Events
 
 | | |
 |---|---|
 | **Version** | 1.0 |
 | **Owner** | Kabani |
-| **Reviewer** | Mohamed Shafeeq |
-| **Scope** | All features across backend (NestJS), frontend (Next.js), worker (BullMQ) |
-
-## TL;DR
-
-> A feature is **not done** until code + tests + docs are merged. Docs live under `dev-docs/`, one set per feature, following the fixed file-naming and section rules below. No doc → no merge.
+| **Scope** | All features across backend (Express), frontend (Next.js), worker (BullMQ) |
 
 ## The Rule
 
@@ -21,13 +14,13 @@ Quick correction before the rewrite: your stack is **NestJS** (backend) and **Bu
 Feature Complete = Implementation ✓ + Testing ✓ + Documentation ✓
 ```
 
-Docs are committed in the **same PR** as the feature. A PR without its docs is not review-ready.
+Docs are committed in the **same PR** as the feature.
 
 ## Directory Structure
 
 ```text
 dev-docs/
-├── backend/                 # NestJS — one .api.md + one .postman.json per feature
+├── backend/                 # Express — one .api.md + one .postman.json per feature
 │   ├── <feature>.api.md     #   human-readable API contract
 │   └── <feature>.postman.json  # importable collection (requests + samples + env)
 ├── frontend/                # Next.js — one .md per feature/module
@@ -51,7 +44,7 @@ Rules: lowercase, singular-or-plural to match the module name, one `<feature>` t
 
 | If the feature touches… | Create |
 |---|---|
-| A NestJS module/controller | `backend/<feature>.api.md` **+** `.postman.json` |
+| An Express route/controller | `backend/<feature>.api.md` **+** `.postman.json` |
 | A Next.js page/route/component | `frontend/<feature>.md` |
 | A BullMQ queue/processor | `worker/<feature>.md` |
 | All three | all three sets |
@@ -74,7 +67,7 @@ Rules: lowercase, singular-or-plural to match the module name, one `<feature>` t
 
 ## Backend — `<feature>.postman.json`
 
-Must include: full collection, environment variables (`{{baseUrl}}`, `{{token}}`, …), one sample request **and** saved sample response per endpoint, and at least one authenticated example.
+Must include: full collection, environment variables (`{{baseUrl}}`, , …), one sample request **and** saved sample response per endpoint, and at least one authenticated example.
 
 ---
 
@@ -141,21 +134,3 @@ Implementation details.
 ```
 
 ---
-
-## Definition of Done
-
-```text
-[ ] Implementation complete
-[ ] Tests pass
-[ ] Backend: .api.md + .postman.json (if API touched)
-[ ] Frontend: <feature>.md (if UI touched)
-[ ] Worker: <feature>.md (if queue touched)
-[ ] Docs committed under dev-docs/ in the same PR
-[ ] Review-ready (assigned to Mohamed Shafeeq)
-```
-
----
-
-Key changes from your draft: corrected Express → NestJS/BullMQ, collapsed the three repeated folder trees into one canonical tree with inline comments, added a naming-convention table and a "what to create" decision table, gave each layer a single copy-paste skeleton, and folded the DoD into one checklist.
-
-Want me to export this as `dev-docs/DOCUMENTATION_STANDARD.md`?
