@@ -73,12 +73,10 @@ kt-events/
 <details>
 <summary><b>worker</b> (Background Jobs)</summary>
 
-- `jobs/`: BullMQ processor definitions:
-  - `send-email.job.ts`
-  - `send-sms.job.ts`
-  - `generate-qr.job.ts`
-  - `generate-invoice-pdf.job.ts`
-  - `generate-badge.job.ts`
+- `modules/`: Domain-based queues, workers, and processors:
+  - `email/`, `notifications/`, `payments/`, `reports/`, `webhooks/`
+- `providers/`: 3rd-party SDK wrappers.
+- `cron/`: Scheduled job enqueuers.
 </details>
 
 ---
@@ -87,8 +85,8 @@ kt-events/
 
 These packages are used across multiple applications to ensure consistency.
 
-- **`db`**: Prisma schema, client, and migration scripts.
-- **`shared-types`**: Common TypeScript interfaces, DTOs, and Enums.
+- **`db`**: Mongoose schemas, models, and database connection utilities.
+- **`shared-types`**: Common TypeScript interfaces, Zod schemas, and Enums.
 - **`ui`**: Design system and shared React components (based on **shadcn/ui**).
 - **`config`**: Shared configurations for ESLint, TypeScript, Tailwind, and Prettier.
 
@@ -101,7 +99,7 @@ These packages are used across multiple applications to ensure consistency.
   - `architecture/`: High-level system diagrams.
   - `adrs/`: Architecture Decision Records tracking major technical choices.
   - `design/`: Figma exports and UI/UX documentation.
-- **`docker-compose.yml`**: Spins up local Postgres, Redis, and MinIO instances.
+- **`docker-compose.yml`**: Spins up local MongoDB, Redis, and MinIO instances.
 
 ---
 

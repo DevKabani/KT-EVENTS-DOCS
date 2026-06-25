@@ -1,6 +1,6 @@
 # Worker — Folder Structure Standard
 
-**Stack:** Express _(health + Bull Board only)_ · TypeScript · BullMQ · Redis · Prisma/PostgreSQL
+**Stack:** Express _(health + Bull Board only)_ · TypeScript · BullMQ · Redis · MongoDB/Mongoose
 
 ## TL;DR
 
@@ -64,7 +64,7 @@ apps/worker/
 | ---------------- | ----------------------------------------- | ------------------------ |
 | `*.queue.ts`     | creates `Queue`, exposes typed `addX()`   | config, types            |
 | `*.worker.ts`    | creates `Worker`, sets concurrency/events | processor, config        |
-| `*.processor.ts` | the actual work                           | providers, prisma, types |
+| `*.processor.ts` | the actual work                           | providers, models, types |
 | `*.types.ts`     | job-name enum + payload interfaces        | —                        |
 
 **Flow:** `API → queue.add() → Redis → Worker → Processor → Provider → External`
