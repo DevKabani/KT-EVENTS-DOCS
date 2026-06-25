@@ -1,95 +1,118 @@
+
+
 # Worker — Folder Structure Standard
 
-> Domain-based job structure. Jobs grouped by business domain, not flat.
+**Stack:** Express *(health + Bull Board only)* · TypeScript · BullMQ · Redis · Prisma/PostgreSQL
 
 ## TL;DR
 
-```
-jobs/         → domain-based job handlers
-queues/       → BullMQ queue definitions
-processors/   → queue processors
-services/     → shared worker services (email, PDF, QR, storage)
-common/       → logger, redis, constants, retry config
-config/       → worker / redis / queue config
-```
+One worker app, one folder per domain. Each domain owns 4 files: `queue` (enqueue), `worker` (consume), `processor` (logic), `types` (payload). Processors never touch SDKs directly — they call `providers/`. Queue names live in one enum. Every processor is idempotent and retry-safe.
 
----
-
-## Folder Responsibilities
-
-| Folder         | Responsibility                                     |
-| -------------- | -------------------------------------------------- |
-| `jobs/`        | Background job handlers, grouped by domain         |
-| `queues/`      | BullMQ queue definitions                           |
-| `processors/`  | Queue processors that dispatch to jobs             |
-| `services/`    | Shared services (email, SMS, PDF, QR, storage)     |
-| `common/`      | Logger, Redis connection, constants, retry config  |
-| `config/`      | Worker, Redis, queue configuration                 |
-| `main.ts`      | Worker bootstrap                                   |
-
----
-
-## Reference Layout
-
-```
-apps/worker/src/
-├── main.ts
-│
-├── jobs/                       # Grouped by domain
-│   ├── notifications/          # send-email, send-sms, send-whatsapp
-│   ├── tickets/                # generate-qr, generate-badge, resend-ticket
-│   ├── bookings/               # booking-expiry, booking-reminder, booking-confirmation
-│   ├── billing/                # generate-invoice-pdf, process-payout, retry-payout
-│   └── webhooks/               # payment-webhook-retry, failed-webhook-retry
-│
-├── queues/                     # one queue per domain
-│   ├── notification.queue.ts
-│   ├── ticket.queue.ts
-│   ├── booking.queue.ts
-│   ├── billing.queue.ts
-│   └── webhook.queue.ts
-│
-├── processors/                 # one processor per domain
-│   └── <domain>.processor.ts
-│
-├── services/                   # email, sms, pdf, qr, storage
-├── common/                     # logger.ts, redis.ts, queue.constants.ts, retry.config.ts
-└── config/                     # redis.config, queue.config, worker.config
+```text
+modules/       → domain queues, workers, logic
+providers/     → 3rd-party SDK wrappers
+config/        → redis, bullmq defaults, env
+cron/          → scheduled job enqueuers
+common/        → shared constants/types/logger
+utils/         → pure functions
+dev-docs/      → per-module docs
 ```
 
----
+## Folder structure
 
-## Domain → Jobs Mapping
+```text
+apps/worker/
+├── src/
+│   ├── index.ts                 # boot: env → redis → register workers → start cron → health server
+│   ├── modules/                 # one folder per domain (identical 4-file pattern)
+│   │   ├── email/
+│   │   │   ├── email.queue.ts        # exports queue + typed addJob() helpers
+│   │   │   ├── email.worker.ts       # new Worker(name, processor, { concurrency })
+│   │   │   ├── email.processor.ts    # business logic, calls providers
+│   │   │   └── email.types.ts        # job-name enum + payload interfaces
+│   │   ├── notifications/  … (same 4 files)
+│   │   ├── payments/       … (same)
+│   │   ├── reports/        … (same)
+│   │   └── webhooks/       … (same)
+│   ├── providers/               # thin wrappers over 3rd-party SDKs
+│   │   ├── email/    resend.provider.ts · nodemailer.provider.ts
+│   │   ├── storage/  minio.provider.ts · s3.provider.ts
+│   │   ├── payment/  razorpay.provider.ts
+│   │   ├── push/     firebase.provider.ts
+│   │   └── sms/      twilio.provider.ts
+│   ├── config/      env.ts · redis.ts · bullmq.ts     # single connection + default job opts
+│   ├── cron/        reminders · cleanup · reports      # scheduled *enqueuers* (see §6)
+│   ├── common/      constants/ types/ helpers/ logger/
+│   └── utils/       date.ts · retry.ts · sleep.ts
+├── dev-docs/worker/  email.md · notifications.md · …   # one per module
+├── package.json · tsconfig.json · Dockerfile
+```
 
-| Domain          | Example Jobs                                        |
-| --------------- | --------------------------------------------------- |
-| `notifications` | Send email, SMS, WhatsApp                           |
-| `tickets`       | Generate QR, generate badge, resend ticket          |
-| `bookings`      | Expire unpaid booking, send reminders               |
-| `billing`       | Generate invoice PDF, process payout, retry payout  |
-| `webhooks`      | Retry failed payment webhooks                       |
+## Folder responsibilities
 
----
+| Folder         | Responsibility                                                                 |
+| -------------- | ------------------------------------------------------------------------------ |
+| `modules/`     | Domain queues, workers, logic (no cross-module imports except via queue)       |
+| `providers/`   | 3rd-party SDK wrappers (the *only* place an SDK is imported)                   |
+| `config/`      | Redis, bullmq defaults, env (one shared Redis connection)                      |
+| `cron/`        | Scheduled job enqueuers (enqueue only, never run logic inline)                 |
+| `common/`      | Shared constants/types/logger (no business logic)                              |
+| `utils/`       | Pure functions (no I/O, no side effects)                                       |
+| `dev-docs/`    | Per-module docs (required before merge)                                        |
 
-## Job Naming
+## Module anatomy (every domain is identical)
 
-Format: `<verb>-<noun>.job.ts` — one clear task per file.
+| File | Role | Imports |
+|---|---|---|
+| `*.queue.ts` | creates `Queue`, exposes typed `addX()` | config, types |
+| `*.worker.ts` | creates `Worker`, sets concurrency/events | processor, config |
+| `*.processor.ts` | the actual work | providers, prisma, types |
+| `*.types.ts` | job-name enum + payload interfaces | — |
 
-| ✅ Good                     | ❌ Bad                |
-| --------------------------- | --------------------- |
-| `send-email.job.ts`         | `notification.job.ts` |
-| `generate-qr.job.ts`        | `ticket.job.ts`       |
-| `booking-expiry.job.ts`     | `booking.job.ts`      |
-| `process-payout.job.ts`     | `helper.job.ts`       |
-| `payment-webhook-retry.job.ts` | `main-job.ts`     |
+**Flow:** `API → queue.add() → Redis → Worker → Processor → Provider → External`
 
-The **folder** says the domain. The **filename** says the exact task.
 
----
+
+Swap a provider = one file change, processors untouched.
+
+## Queue registry (single source of truth)
+
+```ts
+// common/constants/queues.ts
+export enum QueueName {
+  Email        = 'email',
+  Notification = 'notification',
+  Payment      = 'payment',
+  Report       = 'report',
+  Webhook      = 'webhook',
+}
+```
+
+Never type a queue name as a string literal anywhere else.
+
+
+## Reliability defaults (set in `config/bullmq.ts`)
+
+| Concern | Standard |
+|---|---|
+| Retries | `attempts: 3`, `backoff: { type: 'exponential', delay: 5000 }` |
+| Idempotency | pass `jobId` to dedupe; payment/webhook processors must be re-run-safe |
+| Retention | `removeOnComplete: 1000`, `removeOnFail: 5000` |
+| Failures | log + emit on `failed`; exhausted → dead-letter queue |
+| Shutdown | SIGTERM → `await worker.close()` + `queue.close()` (no half-done jobs) |
+| Concurrency | per-worker, tuned per domain (email high, payment low) |
+
+
 
 ## Rules
 
-1. One job = one task. If a job does two things, split it.
-2. Jobs must be **idempotent** — they retry on failure.
-3. Vendor SDKs (email, SMS, storage) go through `services/`, not directly in jobs.
-4. No `process.env` outside `config/`.
+1. One queue per domain; name comes from `QueueName` enum only.
+2. Processor logic never imports an SDK — go through `providers/`.
+3. Every payload typed in `*.types.ts`; no `any` jobs.
+4. Processors are idempotent (assume every job can run twice).
+5. `cron/` enqueues, never executes.
+6. No cross-module calls — communicate by adding to another queue.
+7. No module merges without its `dev-docs/worker/*.md`.
+8. Graceful shutdown wired in `index.ts` for every worker.
+
+---
