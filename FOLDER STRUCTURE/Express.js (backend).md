@@ -1,12 +1,13 @@
-# NestJS Backend — Folder Structure Standard
+# Express Backend — Folder Structure Standard
 
-> Module-based structure. Each business domain owns its own module.
+> Feature-based structure. Each business domain owns its own routes, controllers, services, and data access logic.
 
 ## TL;DR
 
-```
-modules/      → business domains
-common/       → shared guards, decorators, filters, pipes
+```text
+features/     → business domains (routes, controllers, services)
+common/       → shared middlewares, errors, validators
+database/     → MongoDB connection setup
 providers/    → third-party integrations
 config/       → environment configuration
 utils/        → pure helper functions
@@ -18,58 +19,59 @@ utils/        → pure helper functions
 
 | Folder           | Responsibility                                         |
 | ---------------- | ------------------------------------------------------ |
-| `modules/`       | Business domain modules                                |
-| `common/`        | Shared guards, decorators, filters, pipes, interceptors |
+| `features/`      | Business domain features                               |
+| `common/`        | Shared middlewares, error handlers, and validations    |
+| `database/`      | MongoDB connection and lifecycle setup                 |
 | `providers/`     | Third-party service integrations                       |
 | `config/`        | Environment-based configuration                        |
 | `utils/`         | Shared helper functions                                |
-| `main.ts`        | Application bootstrap                                  |
-| `app.module.ts`  | Root module registration                               |
+| `server.ts`      | Application bootstrap / server listen                  |
+| `app.ts`         | Express app setup and global middleware registration   |
 
 ---
 
 ## Reference Layout
 
-```
+```text
 apps/api/src/
-├── main.ts
-├── app.module.ts
+├── server.ts
+├── app.ts
 │
-├── modules/                # auth, users, hosts, events, bookings,
+├── features/               # auth, users, hosts, events, bookings,
 │   └── <domain>/           # payments, tickets, checkin, coupons,
 │                           # notifications, kyc, withdrawals,
 │                           # plans, admin, platform-settings, webhooks
 │
 ├── common/
-│   ├── guards/             # firebase-auth.guard.ts, roles.guard.ts
-│   ├── decorators/         # current-user.decorator.ts, roles.decorator.ts
-│   ├── filters/            # http-exception.filter.ts
-│   ├── interceptors/       # response.interceptor.ts
-│   ├── pipes/              # validation.pipe.ts
+│   ├── middlewares/        # auth.middleware.ts, role.middleware.ts
+│   ├── errors/             # error-handler.middleware.ts, custom-errors.ts
+│   ├── validations/        # validator.middleware.ts
 │   └── constants/
 │
+├── database/               # mongodb.connection.ts
 ├── providers/              # payment/, sms/, whatsapp/, email/, storage/
-├── config/                 # app, database, firebase, payment, queue
+├── config/                 # app, mongodb, firebase, payment, queue
 └── utils/                  # date, slug, pagination
 ```
 
 ---
 
-## Module Shape
+## Feature Shape
 
-Every module follows the same shape:
+Every feature follows the same shape:
 
-```
-modules/events/
-├── events.module.ts
-├── events.controller.ts
-├── events.service.ts
-├── dto/                # create-event, update-event, event-filter
-├── entities/           # event.entity.ts
-├── repositories/       # events.repository.ts
-├── guards/             # event-owner.guard.ts (module-specific only)
+```text
+features/events/
+├── events.route.ts     # Express router definition
+├── events.controller.ts# Request/Response handling
+├── events.service.ts   # Business logic
+├── events.schema.ts    # Zod validation schemas & TypeScript types
+├── events.model.ts     # MongoDB/Mongoose model definitions
+├── events.queue.ts     # BullMQ queue (enqueuing jobs)
 └── constants/
 ```
+
+> **Rule:** If a single feature requires multiple models or multiple schemas, group them into `models/` and `schemas/` folders respectively instead of using flat files (e.g., `models/event.model.ts`, `models/ticket.model.ts`).
 
 ---
 
@@ -77,27 +79,36 @@ modules/events/
 
 | Layer        | Responsibility                          | Don't                              |
 | ------------ | --------------------------------------- | ---------------------------------- |
+| Route        | Define endpoints and attach middlewares | Put controller logic here          |
 | Controller   | Request/response wiring only            | Put business logic here            |
-| Service      | Business logic, validation, orchestration | Write raw DB queries              |
-| Repository   | Database query logic                    | Contain business rules             |
-| DTO          | Request validation & input shape        | Add behavior or methods            |
-| Provider     | Vendor SDK calls                        | Be imported directly by modules — go via the abstraction |
+| Service      | Business logic, validation, data access, orchestration | Put HTTP req/res logic here |
+| Schema       | Zod request validation & TypeScript type inference | Add behavior or methods            |
+| Model        | MongoDB/Mongoose schema and model definition       | Put business logic or HTTP logic here |
+| Queue        | BullMQ queue instance & addJob helpers  | Process jobs here (done in worker app) |
+| Provider     | Vendor SDK calls                        | Be imported directly by features — go via the abstraction |
 
-### Controller — thin
+### Route & Controller — thin
 
 ```ts
-@Post()
-createEvent(@Body() dto: CreateEventDto, @CurrentUser() user: AuthUser) {
-  return this.eventsService.createEvent(dto, user);
-}
+// events.route.ts
+const router = Router();
+router.post('/', authMiddleware, validateRequest(createEventSchema), eventsController.createEvent);
+export default router;
+
+// events.controller.ts
+export const createEvent = asyncHandler(async (req: Request, res: Response) => {
+  const event = await eventsService.createEvent(req.body, req.user);
+  res.status(201).json(event);
+});
 ```
 
 ### Service — business logic
 
 ```ts
-async createEvent(dto: CreateEventDto, user: AuthUser) {
+// events.service.ts
+export const createEvent = async (data: CreateEventDTO, user: AuthUser) => {
   // validate host, create event, return response
-}
+};
 ```
 
 ---
@@ -106,10 +117,11 @@ async createEvent(dto: CreateEventDto, user: AuthUser) {
 
 | Need                                | Put it in...   |
 | ----------------------------------- | -------------- |
-| Auth guard, role guard, decorator   | `common/`      |
-| Exception filter, interceptor, pipe | `common/`      |
+| Auth middleware, role middleware    | `common/middlewares/` |
+| Error handling, generic validation  | `common/errors/` or `common/validations/` |
+| MongoDB connection lifecycle        | `database/`    |
 | Stripe / Razorpay / Twilio / S3     | `providers/`   |
-| Env-based config (DB URL, keys)     | `config/`      |
+| Env-based config (MongoDB URI, keys)| `config/`      |
 | Pure helper (date, slug, pagination)| `utils/`       |
 
 **Never** read `process.env` outside `config/`.

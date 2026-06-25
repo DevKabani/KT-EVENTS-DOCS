@@ -1,6 +1,6 @@
 # Root Layout & Project Structure
 
-This document outlines the high-level architecture and folder structure for the **KT-Events** monorepo. The project is managed using [Turborepo](https://turbo.build/) and [pnpm workspaces](https://pnpm.io/workspaces).
+This document outlines the high-level architecture and folder structure for the **KT-Events** monorepo. The project is managed using [pnpm workspaces](https://pnpm.io/workspaces) with root-level scripts for development, builds, linting, and testing.
 
 ---
 
@@ -24,7 +24,7 @@ kt-events/
 | `web-public` | Next.js | `yourdomain.com` | Marketing site, event discovery, and guest booking. |
 | `web-host` | Next.js | `app.yourdomain.com` | Dashboard for event organizers (hosts) to manage events. |
 | `web-admin` | Next.js | `admin.yourdomain.com` | Internal platform management and moderation. |
-| `api` | NestJS | `api.yourdomain.com` | Core backend services and business logic. |
+| `api` | Express | `api.yourdomain.com` | Core backend services and business logic. |
 | `worker` | BullMQ | Background | Asynchronous job processing (emails, PDFs, etc). |
 
 ### Detailed App Breakdowns
@@ -59,15 +59,15 @@ kt-events/
 </details>
 
 <details>
-<summary><b>api</b> (NestJS Backend)</summary>
+<summary><b>api</b> (Express Backend)</summary>
 
-- `modules/`: Feature-sliced business logic:
+- `features/`: Feature-sliced business domains:
   - `auth`, `users`, `hosts`, `events`, `bookings`
   - `payments`, `tickets`, `checkin`, `coupons`
   - `notifications`, `kyc`, `withdrawals`, `plans`
   - `admin`, `platform-settings`, `webhooks`
 - `providers/`: Abstractions for external services (Payments, SMS, Email, Storage).
-- `common/`: Global guards, interceptors, decorators, and filters.
+- `common/`: Shared middlewares, validations, and error handlers.
 </details>
 
 <details>
@@ -107,7 +107,7 @@ These packages are used across multiple applications to ensure consistency.
 
 ## Root Configuration Files
 
-- `turbo.json`: Turborepo pipeline definitions.
+- `package.json`: Root workspace scripts for running app and package tasks.
 - `pnpm-workspace.yaml`: Defines the monorepo workspace members.
 - `PROJECT.md`: Main project overview (this file).
 - `README.md`: Getting started guide for developers.
